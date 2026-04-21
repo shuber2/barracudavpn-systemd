@@ -1,0 +1,50 @@
+#!/bin/bash
+#
+# Stefan Huber, 2026-04-21
+#
+# Installation:
+#   - Download and the barracudavpn linux package
+#   - Install it, i.e., dpkg -i barracudavpn_5.3.6_amd64.deb
+#   - Put barracudavpn.conf into /etc/barracudavpn/
+#   - Fixup: The barracudavpn linux for some reason brings up an error for not
+#     being able to open tun0. Fix: ln -s /dev/net/tun /dev/net/tun0
+#   - Set USER and PASSWORD below
+#   - Attention: If you have another tun-based VPN running (i.e., openvpn) then
+#     you need to take care that it does not use up tun0. At least in the past
+#     I had problems when openvpn consumed tun0. Place a "dev tun1" config into
+#     your openvpn client config.
+#
+#   - Barracudavpn also needs actually f.smqueue.msg_max=16. Hence: sysctl -w fs.mqueue.msg_max=16
+
+
+set -e
+
+USER=xxx
+# don't look up
+PASSWORD=yyy
+
+echo "Starting barracudavpn..."
+
+# Start client
+/usr/local/bin/barracudavpn --start --login ${USER} --serverpwd ${PASSWORD}
+
+# In case you use systemd-resolved fixup DNS routing. Others I have not
+# investigated.
+if readlink -f /etc/resolv.conf | grep -q systemd/resolve; then
+    echo "Fixing up DNS..."
+    # Fixup: Do not route all DNS requests via tun0
+    resolvectl domain tun0 ISIAextern
+fi
+
+echo "Setup done."
+read -p "Press Enter to stop barracudavpn..."
+
+echo "Stopping barracudavpn..."
+/usr/local/bin/barracudavpn --stop
+
+# read -p "Press Enter to stop barracudavpn..."
+#
+# echo "Stopping barracudavpn..."
+# /usr/local/bin/barracudavpn --stop
+#
+# echo "Done."
